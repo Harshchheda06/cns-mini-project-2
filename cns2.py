@@ -5,25 +5,30 @@ import base64
 import json
 from io import BytesIO
 import timeit
-from concurrent.futures import ThreadPoolExecutor
+
 
 def rotate180(n):
     bits = "{0:b}".format(n)
     return int(bits[::-1], 2)
+
 
 def roll_row(matrix, key, encrypt_flag=True):
     direction_multiplier = 1 if encrypt_flag else -1
     for i in range(len(matrix)):
         modulus = np.sum(matrix[i, :, :], axis=1) % 2
         for c in range(matrix.shape[2]):
-            matrix[i, :, c] = np.roll(matrix[i, :, c], direction_multiplier * key[i]) if modulus[c] == 0 else np.roll(matrix[i, :, c], -direction_multiplier * key[i])
+            matrix[i, :, c] = np.roll(matrix[i, :, c], direction_multiplier * key[i]) if modulus[c] == 0 else np.roll(
+                matrix[i, :, c], -direction_multiplier * key[i])
+
 
 def roll_column(matrix, key, encrypt_flag=True):
     direction_multiplier = 1 if encrypt_flag else -1
     for i in range(len(matrix[0])):
         modulus = np.sum(matrix[:, i, :], axis=1) % 2
         for c in range(matrix.shape[2]):
-            matrix[:, i, c] = np.roll(matrix[:, i, c], direction_multiplier * key[i]) if modulus[c] == 0 else np.roll(matrix[:, i, c], -direction_multiplier * key[i])
+            matrix[:, i, c] = np.roll(matrix[:, i, c], direction_multiplier * key[i]) if modulus[c] == 0 else np.roll(
+                matrix[:, i, c], -direction_multiplier * key[i])
+
 
 def xor_pixels(matrix, Kr, Kc):
     m, n, _ = matrix.shape
@@ -32,6 +37,7 @@ def xor_pixels(matrix, Kr, Kc):
             xor_operand_1 = Kc[j] if i % 2 == 1 else rotate180(Kc[j])
             xor_operand_2 = Kr[i] if j % 2 == 0 else rotate180(Kr[i])
             matrix[i, j, :] ^= xor_operand_1 ^ xor_operand_2
+
 
 def encrypt_image(input_image, alpha=8):
     matrix = np.array(input_image)
@@ -56,7 +62,8 @@ def encrypt_image(input_image, alpha=8):
     with open("encryption_key.txt", "w") as key_file:
         key_file.write(serialized_key)
 
-    return encrypted_image
+    return encrypted_image, key
+
 
 def create_download_link(image, filename):
     buffered = BytesIO()
@@ -64,8 +71,6 @@ def create_download_link(image, filename):
     image_str = base64.b64encode(buffered.getvalue()).decode()
     href = f'<a href="data:file/png;base64,{image_str}" download="{filename}.png">Download {filename}</a>'
     return href
-
-
 
 
 def decrypt_image(encrypted_image, key):
@@ -80,6 +85,7 @@ def decrypt_image(encrypted_image, key):
     decrypted_image = Image.fromarray(matrix.astype(np.uint8))
     return decrypted_image
 
+
 def create_key(m, n, alpha):
     Kr = [np.random.randint(0, 2 ** alpha - 1) for _ in range(m)]
     Kc = [np.random.randint(0, 2 ** alpha - 1) for _ in range(n)]
@@ -92,7 +98,6 @@ def create_key(m, n, alpha):
     }
 
     return key_dict
-
 
 
 def main():
@@ -117,7 +122,7 @@ def main():
 
             # Perform encryption
             encryption_start_time = timeit.default_timer()
-            st.session_state.encrypted_image = encrypt_image(input_image, alpha=alpha_value)
+            st.session_state.encrypted_image, key = encrypt_image(input_image, alpha=alpha_value)
             encryption_end_time = timeit.default_timer()
 
             # Display the encrypted image
@@ -127,8 +132,10 @@ def main():
             download_link = create_download_link(st.session_state.encrypted_image, "Encrypted_Image")
             st.markdown(download_link, unsafe_allow_html=True)
 
-            # Measure encryption time
+            # Measure encryption time and store it in session state
             encryption_time = encryption_end_time - encryption_start_time
+            st.session_state.encryption_time_global = encryption_time
+
             st.write(f"Encryption Time: {encryption_time} seconds")
 
         if decrypt_button and st.session_state.encrypted_image is not None:
@@ -156,9 +163,11 @@ def main():
                 download_link = create_download_link(decrypted_image, "Decrypted_Image")
                 st.markdown(download_link, unsafe_allow_html=True)
 
+                # Display the encryption time
+                st.write(f"Encryption Time: {st.session_state.encryption_time_global} seconds")
+
                 # Measure decryption time
                 decryption_time = decryption_end_time - decryption_start_time
-                st.write(f"Encryption Time: {encryption_time} seconds")
                 st.write(f"Decryption Time: {decryption_time} seconds")
 
             except Exception as e:
@@ -167,6 +176,7 @@ def main():
 
         else:
             st.write("You need to First Encrypt image inorder to Decrypt it")
+
 
 if __name__ == "__main__":
     main()
