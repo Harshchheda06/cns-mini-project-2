@@ -158,6 +158,7 @@ def main():
 
                 # Measure decryption time
                 decryption_time = decryption_end_time - decryption_start_time
+                st.write(f"Encryption Time: {encryption_time} seconds")
                 st.write(f"Decryption Time: {decryption_time} seconds")
 
             except Exception as e:
